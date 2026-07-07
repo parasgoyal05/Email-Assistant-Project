@@ -25,6 +25,7 @@ function getEmailContent(){
     return '';
 }
 
+
 function findComposeToolbar(){
     const selectors = [
         '.btC',
@@ -41,60 +42,92 @@ function findComposeToolbar(){
     }
     return null;
 }
+function createToneSelector() {
+    const select = document.createElement("select");
+    select.className = "ai-tone-selector";
+    select.style.marginRight = "8px";
+    select.style.padding = "4px";
+    select.style.borderRadius = "4px";
 
-function injectButton(params){
+    const tones = ["Professional", "Friendly", "Formal", "Casual"];
+
+    tones.forEach(tone => {
+        const option = document.createElement("option");
+        option.value = tone.toLowerCase();
+        option.textContent = tone;
+        select.appendChild(option);
+    });
+
+    return select;
+}
+
+function injectButton() {
     const existingButton = document.querySelector('.ai-reply-button');
-    if(existingButton) existingButton.remove();
+    if (existingButton) existingButton.remove();
+
+    const existingSelector = document.querySelector('.ai-tone-selector');
+    if (existingSelector) existingSelector.remove();
 
     const toolBar = findComposeToolbar();
-    if(!toolBar){
+    if (!toolBar) {
         console.log("Toolbar not found");
         return;
     }
 
     console.log("Toolbar found, creating AI button");
+
+    const toneSelector = createToneSelector();
+
     const button = createAIButton();
     button.classList.add('ai-reply-button');
 
-    button.addEventListener('click',async() =>{
-        try{
-            button.innerHTML = 'Generating....';
+    button.addEventListener('click', async () => {
+        try {
+            button.innerHTML = 'Generating...';
             button.disabled = true;
 
             const emailContent = getEmailContent();
-            const response = await fetch('http://localhost:8080/api/email/generate',{
+            const selectedTone = toneSelector.value;
+
+            const response = await fetch('http://localhost:8080/api/email/generate', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    emailContent : emailContent,
-                    tone: "professional"
+                    emailContent: emailContent,
+                    tone: selectedTone
                 })
             });
 
-            if(!response.ok){
+            if (!response.ok) {
                 throw new Error('API request failed');
             }
 
             const generatedReply = await response.text();
-            const composeBox = document.querySelector('[role="textbox"][g_editable="true"]');
-            if(composeBox){
+
+            const composeBox = document.querySelector(
+                '[role="textbox"][g_editable="true"]'
+            );
+
+            if (composeBox) {
                 composeBox.focus();
-                document.execCommand('insertText',false,generatedReply);
-            }else{
+                document.execCommand('insertText', false, generatedReply);
+            } else {
                 console.error('ComposeBox was not found');
             }
-        }catch(error){
+
+        } catch (error) {
             console.error(error);
             alert('Failed to generate reply');
-        }finally{
+        } finally {
             button.innerHTML = 'AI Reply';
             button.disabled = false;
         }
     });
-    toolBar.insertBefore(button,toolBar.firstChild);
-    
+
+    toolBar.insertBefore(toneSelector, toolBar.firstChild);
+    toolBar.insertBefore(button, toneSelector.nextSibling);
 }
 
 const observer = new MutationObserver((mutations) => {
